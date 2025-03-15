@@ -5,26 +5,6 @@ using namespace Utility;
 
 namespace DRV8825 {
 
-    float DRV8825::microstep_to_fraction(Microstep const microstep) noexcept
-    {
-        switch (microstep) {
-            case Microstep::FULL:
-                return 1.0F;
-            case Microstep::HALF:
-                return 0.5F;
-            case Microstep::QUARTER:
-                return 0.25F;
-            case Microstep::EIGHTH:
-                return 0.125F;
-            case Microstep::SIXTEENTH:
-                return 0.0625F;
-            case Microstep::THIRTYSECOND:
-                return 0.03125F;
-            default:
-                return 0.0F;
-        }
-    }
-
     DRV8825::DRV8825(PWMDevice&& pwm_device,
                      GPIO const pin_mode0,
                      GPIO const pin_mode1,

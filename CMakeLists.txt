@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 include("cmake/gcc-arm-none-eabi.cmake")
 
-project(devcontainer-stm32-cubemx-drv8825 LANGUAGES C CXX ASM)
+project(stm32-cubemx-drv8825 LANGUAGES C CXX ASM)
 
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)

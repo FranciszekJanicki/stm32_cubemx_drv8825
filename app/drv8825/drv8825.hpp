@@ -1,39 +1,13 @@
 #ifndef DRV8825_HPP
 #define DRV8825_HPP
 
-#include "gpio.hpp"
-#include "pwm_device.hpp"
-#include "utility.hpp"
+#include "drv8825_config.hpp"
 #include <cstdint>
 
 namespace DRV8825 {
 
     struct DRV8825 {
     public:
-        enum struct Microstep : std::uint8_t {
-            FULL,
-            HALF,
-            QUARTER,
-            EIGHTH,
-            SIXTEENTH,
-            THIRTYSECOND,
-        };
-
-        enum struct Decay : std::uint8_t {
-            FAST,
-            SLOW,
-        };
-
-        enum struct Direction : std::uint8_t {
-            FORWARD,
-            BACKWARD,
-        };
-
-        using PWMDevice = Utility::PWMDevice;
-        using GPIO = Utility::GPIO;
-
-        static float microstep_to_fraction(Microstep const microstep) noexcept;
-
         DRV8825() noexcept = default;
         DRV8825(PWMDevice&& pwm_device,
                 GPIO const pin_mode0,
@@ -77,8 +51,6 @@ namespace DRV8825 {
         void set_step(bool const step = true) const noexcept;
 
     private:
-        static constexpr std::uint64_t COUNTER_PERIOD{1000UL};
-
         void initialize() noexcept;
         void deinitialize() noexcept;
 

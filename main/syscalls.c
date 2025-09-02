@@ -1,7 +1,3 @@
-#include "FreeRTOS.h"
-#include "manager.h"
-#include "semphr.h"
-#include "stream_buffer.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
@@ -46,25 +42,9 @@ int _read(int file, char* ptr, int len)
 
 int _write(int file, char* ptr, int len)
 {
-#ifdef USE_LOG_TASK
-    StreamBufferHandle_t log_stream_buffer =
-        stream_buffer_manager_get(STREAM_BUFFER_TYPE_LOG);
-
-    return xStreamBufferSend(log_stream_buffer, ptr, len, len);
-#else
-    SemaphoreHandle_t log_mutex = semaphore_manager_get(SEMAPHORE_TYPE_LOG);
-
-    if (xSemaphoreTake(log_mutex, pdMS_TO_TICKS(10))) {
-#ifdef LOG_VIA_UART
-        HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, len);
-#else
-        CDC_Transmit_FS((uint8_t*)ptr, len);
-#endif
-        xSemaphoreGive(log_mutex);
-    }
-
+    //    HAL_UART_Transmit(LOG_UART_BUS, (uint8_t*)ptr, len, len);
+    CDC_Transmit_FS((uint8_t*)ptr, len);
     return len;
-#endif
 }
 
 int _close(int file)

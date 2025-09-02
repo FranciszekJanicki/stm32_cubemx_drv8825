@@ -1,7 +1,3 @@
-a4988a4988a4988
-[submodule "submodules/a4988"]
-	path = submodules/a4988
-	url = git@github.com:FranciszekJanicki/a4988.git
 [submodule "submodules/as5600"]
 	path = submodules/as5600
 	url = git@github.com:FranciszekJanicki/as5600.git
@@ -17,15 +13,6 @@ a4988a4988a4988
 [submodule "submodules/motor_driver"]
 	path = submodules/motor_driver
 	url = git@github.com:FranciszekJanicki/motor_driver.git
-[submodule "submodules/atlas_core"]
-	path = submodules/atlas_core
-	url = git@github.com:FranciszekJanicki/atlas_core.git
-[submodule "submodules/bus_task"]
-	path = submodules/bus_task
-	url = git@github.com:FranciszekJanicki/bus_task.git
-[submodule "submodules/utility"]
-	path = submodules/utility
-	url = git@github.com:FranciszekJanicki/utility.git
-[submodule "submodules/handle_manager"]
-	path = submodules/handle_manager
-	url = git@github.com:FranciszekJanicki/handle_manager.git
+[submodule "submodules/drv8825"]
+	path = submodules/drv8825
+	url = git@github.com:FranciszekJanicki/drv8825.git

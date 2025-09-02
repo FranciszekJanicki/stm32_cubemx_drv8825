@@ -10,7 +10,12 @@ target_sources(main PRIVATE
 
 target_link_libraries(main PRIVATE
     stm32cubemx
-    atlas_joint
+    drv8825
+    as5600
+    ina226
+    step_motor
+    pid_regulator
+    motor_driver
 )
 
 target_compile_options(main PUBLIC

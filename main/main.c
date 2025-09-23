@@ -111,14 +111,7 @@ static drv8825_err_t drv8825_pwm_set_frequency(void* user, uint32_t frequency)
                                                     &period);
 
     if (result && period < 0xFFFFU && prescaler < 0xFFFFU) {
-        uint32_t tick_hz = clock_hz / (prescaler + 1);
-        uint32_t compare = (tick_hz / 1000000) * 5; // 5 us pulse
-        if (compare == 0) {
-            compare = 1;
-        }
-        if (compare > period) {
-            compare = period;
-        }
+        uint32_t compare = (uint32_t)((float32_t)period / 2.0F);
 
         drv8825_pwm_user_t* pwm_user = (drv8825_pwm_user_t*)user;
 
@@ -332,6 +325,8 @@ int main(void)
     MX_TIM2_Init();
     MX_I2C1_Init();
 
+    HAL_Delay(500);
+
     drv8825_pwm_user_t drv8825_pwm_user = {.timer = DRV8825_PWM_TIMER,
                                            .channel = DRV8825_PWM_CHANNEL};
 
@@ -423,12 +418,6 @@ int main(void)
     motor_driver_initialize(&driver, &driver_config, &driver_interface);
 
     delta_timer_start();
-
-    drv8825_set_frequency(&drv8825, 50U);
-    drv8825_set_direction(&drv8825, DRV8825_DIRECTION_BACKWARD);
-
-    while (1) {
-    }
 
     motor_driver_state_t state;
     while (1) {

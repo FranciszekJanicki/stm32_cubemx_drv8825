@@ -27,13 +27,13 @@
 
 #define DELTA_TIMER (&htim1)
 
-#define AS5600_I2C_ADDRESS (0x36U)
+#define AS5600_I2C_ADDRESS (0x36U << 1U)
 #define AS5600_I2C_BUS (&hi2c1)
 #define AS5600_DIR_GPIO GPIOA
 #define AS5600_DIR_PIN (1U << 10U)
 
 #define INA226_I2C_BUS (&hi2c1)
-#define INA226_I2C_ADDRESS (0x40U)
+#define INA226_I2C_ADDRESS (0x40U << 1U)
 
 #define DRV8825_PWM_TIMER (&htim2)
 #define DRV8825_PWM_CHANNEL TIM_CHANNEL_1

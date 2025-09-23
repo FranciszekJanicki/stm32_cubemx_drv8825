@@ -424,6 +424,12 @@ int main(void)
 
     delta_timer_start();
 
+    drv8825_set_frequency(&drv8825, 50U);
+    drv8825_set_direction(&drv8825, DRV8825_DIRECTION_BACKWARD);
+
+    while (1) {
+    }
+
     motor_driver_state_t state;
     while (1) {
         if (has_delta_timer_elapsed) {

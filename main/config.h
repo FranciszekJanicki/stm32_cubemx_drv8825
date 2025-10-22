@@ -12,9 +12,9 @@
 #define MAX_SPEED (1000.0F)
 #define MIN_ACCELERATION (0.0F)
 #define MAX_ACCELERATION (1000.0F)
-#define STEP_CHANGE (1.8F / 16.0F)
+#define STEP_CHANGE (1.8F)
 #define CURRENT_LIMIT (2.0F)
-#define DEAD_ERROR (1.8F / 16.0F)
+#define DEAD_ERROR (1.8F)
 #define MAGNET_POLARITY (true)
 
 #define DELTA_TIME (10.0F / 1000.0F)

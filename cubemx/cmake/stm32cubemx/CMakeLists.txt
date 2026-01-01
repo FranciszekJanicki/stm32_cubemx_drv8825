@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 # Enable CMake support for ASM and C languages
-enable_language(C ASM)
+
 # STM32CubeMX generated symbols (macros)
 set(MX_Defines_Syms 
 	USE_HAL_DRIVER 
@@ -100,6 +100,7 @@ target_link_libraries(STM32_Drivers PUBLIC stm32cubemx)
 # Create USB_Device_Library static library
 add_library(USB_Device_Library OBJECT)
 target_sources(USB_Device_Library PRIVATE ${USB_Device_Library_Src})
+target_link_libraries(USB_Device_Library PUBLIC stm32cubemx)
 
 add_library(cubemx STATIC)
 target_sources(cubemx PRIVATE ${MX_Application_Src})

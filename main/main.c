@@ -20,18 +20,21 @@
 #include <string.h>
 
 typedef struct {
-    TIM_HandleTypeDef* timer;
-    uint16_t channel;
+    TIM_HandleTypeDef* step_timer;
+    uint16_t step_channel;
 } drv8825_pwm_user_t;
 
 typedef struct {
-    GPIO_TypeDef* port;
-    uint16_t pin;
+    GPIO_TypeDef* dir_port;
+    uint16_t dir_pin;
+
+    GPIO_TypeDef* en_port;
+    uint16_t en_pin;
 } drv8825_gpio_user_t;
 
 typedef struct {
-    GPIO_TypeDef* port;
-    uint16_t pin;
+    GPIO_TypeDef* dir_port;
+    uint16_t dir_pin;
 } as5600_gpio_user_t;
 
 typedef struct {
@@ -80,7 +83,7 @@ static drv8825_err_t drv8825_pwm_start(void* user)
 {
     drv8825_pwm_user_t* pwm_user = (drv8825_pwm_user_t*)user;
 
-    HAL_TIM_PWM_Start_IT(pwm_user->timer, pwm_user->channel);
+    HAL_TIM_PWM_Start_IT(pwm_user->step_timer, pwm_user->step_channel);
 
     return DRV8825_ERR_OK;
 }
@@ -89,7 +92,7 @@ static drv8825_err_t drv8825_pwm_stop(void* user)
 {
     drv8825_pwm_user_t* pwm_user = (drv8825_pwm_user_t*)user;
 
-    HAL_TIM_PWM_Stop_IT(pwm_user->timer, pwm_user->channel);
+    HAL_TIM_PWM_Stop_IT(pwm_user->step_timer, pwm_user->step_channel);
 
     return DRV8825_ERR_OK;
 }
@@ -115,12 +118,14 @@ static drv8825_err_t drv8825_pwm_set_frequency(void* user, uint32_t frequency)
 
         drv8825_pwm_user_t* pwm_user = (drv8825_pwm_user_t*)user;
 
-        __HAL_TIM_DISABLE(pwm_user->timer);
-        __HAL_TIM_SET_COUNTER(pwm_user->timer, 0U);
-        __HAL_TIM_SET_PRESCALER(pwm_user->timer, prescaler);
-        __HAL_TIM_SET_AUTORELOAD(pwm_user->timer, period);
-        __HAL_TIM_SET_COMPARE(pwm_user->timer, pwm_user->channel, compare);
-        __HAL_TIM_ENABLE(pwm_user->timer);
+        __HAL_TIM_DISABLE(pwm_user->step_timer);
+        __HAL_TIM_SET_COUNTER(pwm_user->step_timer, 0U);
+        __HAL_TIM_SET_PRESCALER(pwm_user->step_timer, prescaler);
+        __HAL_TIM_SET_AUTORELOAD(pwm_user->step_timer, period);
+        __HAL_TIM_SET_COMPARE(pwm_user->step_timer,
+                              pwm_user->step_channel,
+                              compare);
+        __HAL_TIM_ENABLE(pwm_user->step_timer);
     }
 
     return DRV8825_ERR_OK;
@@ -132,9 +137,14 @@ static drv8825_err_t drv8825_gpio_write_pin(void* user,
 {
     drv8825_gpio_user_t* gpio_user = (drv8825_gpio_user_t*)user;
 
-    HAL_GPIO_WritePin(gpio_user->port,
-                      (uint16_t)gpio_user->pin,
-                      (GPIO_PinState)!state);
+    GPIO_TypeDef* gpio_port = nullptr;
+    if (pin == gpio_user->en_pin) {
+        gpio_port = gpio_user->en_port;
+    } else if (pin == gpio_user->dir_pin) {
+        gpio_port = gpio_user->dir_port;
+    }
+
+    HAL_GPIO_WritePin(gpio_port, (uint16_t)pin, (GPIO_PinState)!state);
 
     return DRV8825_ERR_OK;
 }
@@ -200,8 +210,8 @@ static as5600_err_t as5600_gpio_write_pin(void* user, uint32_t pin, bool state)
 {
     as5600_gpio_user_t* gpio_user = (as5600_gpio_user_t*)user;
 
-    HAL_GPIO_WritePin(gpio_user->port,
-                      (uint16_t)gpio_user->pin,
+    HAL_GPIO_WritePin(gpio_user->dir_port,
+                      (uint16_t)gpio_user->dir_pin,
                       (GPIO_PinState)state);
 
     return AS5600_ERR_OK;
@@ -327,14 +337,16 @@ int main(void)
 
     HAL_Delay(500);
 
-    drv8825_pwm_user_t drv8825_pwm_user = {.timer = DRV8825_PWM_TIMER,
-                                           .channel = DRV8825_PWM_CHANNEL};
+    drv8825_pwm_user_t drv8825_pwm_user = {.step_timer = DRV8825_PWM_TIMER,
+                                           .step_channel = DRV8825_PWM_CHANNEL};
 
-    drv8825_gpio_user_t drv8825_gpio_user = {.port = DRV8825_DIR_GPIO,
-                                             .pin = DRV8825_DIR_PIN};
+    drv8825_gpio_user_t drv8825_gpio_user = {.dir_port = DRV8825_DIR_GPIO,
+                                             .dir_pin = DRV8825_DIR_PIN,
+                                             .en_port = DRV8825_EN_GPIO,
+                                             .en_pin = DRV8825_EN_PIN};
 
-    as5600_gpio_user_t as5600_gpio_user = {.port = AS5600_DIR_GPIO,
-                                           .pin = AS5600_DIR_PIN};
+    as5600_gpio_user_t as5600_gpio_user = {.dir_port = AS5600_DIR_GPIO,
+                                           .dir_pin = AS5600_DIR_PIN};
 
     as5600_i2c_user_t as5600_i2c_user = {.bus = AS5600_I2C_BUS,
                                          .address = AS5600_I2C_ADDRESS};

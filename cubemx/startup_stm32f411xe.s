@@ -59,7 +59,13 @@ defined in linker script */
   .type  Reset_Handler, %function
 Reset_Handler:  
   ldr   sp, =_estack    		 /* set stack pointer */
-
+  /* Enable FPU: CP10 + CP11 full access */
+  ldr r0, =0xE000ED88      /* SCB->CPACR */
+  ldr r1, [r0]
+  orr r1, r1, #(0xF << 20)
+  str r1, [r0]
+  dsb
+  isb
 /* Call the clock system initialization function.*/
   bl  SystemInit   
 

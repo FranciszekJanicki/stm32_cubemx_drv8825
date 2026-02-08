@@ -62,7 +62,6 @@ target_sources(stm32cubemx INTERFACE
     ../../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
     ../../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
     ../../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
-  
     ../../startup_stm32f411xe.s
 )
 

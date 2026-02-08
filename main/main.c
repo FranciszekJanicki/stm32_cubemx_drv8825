@@ -14,10 +14,13 @@
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+float drv8825_microstep_to_fraction(drv8825_microstep_t microstep);
 
 typedef struct {
     TIM_HandleTypeDef* step_timer;
@@ -30,6 +33,9 @@ typedef struct {
 
     GPIO_TypeDef* en_port;
     uint16_t en_pin;
+
+    GPIO_TypeDef* mx_port[3];
+    uint16_t mx_pin[3];
 } drv8825_gpio_user_t;
 
 typedef struct {
@@ -142,11 +148,29 @@ static drv8825_err_t drv8825_gpio_write_pin(void* user,
         gpio_port = gpio_user->en_port;
     } else if (pin == gpio_user->dir_pin) {
         gpio_port = gpio_user->dir_port;
+    } else {
+        for (uint8_t i = 0U;
+             i < sizeof(gpio_user->mx_pin) / sizeof(*gpio_user->mx_pin);
+             ++i) {
+            if (gpio_user->mx_pin[i] == pin) {
+                gpio_port = gpio_user->mx_port[i];
+            }
+        }
     }
 
-    HAL_GPIO_WritePin(gpio_port, (uint16_t)pin, (GPIO_PinState)!state);
+    HAL_GPIO_WritePin(gpio_port, (uint16_t)pin, (GPIO_PinState)state);
 
     return DRV8825_ERR_OK;
+}
+
+static step_motor_err_t step_motor_device_initialize(void* user)
+{
+    drv8825_t* drv8825 = (drv8825_t*)user;
+
+    drv8825_set_enable(drv8825, true);
+    drv8825_set_sleep(drv8825, false);
+
+    return STEP_MOTOR_ERR_OK;
 }
 
 static step_motor_err_t step_motor_device_set_frequency(void* user,
@@ -269,9 +293,12 @@ as5600_err_t as5600_initialize_chip(as5600_t* as5600,
 motor_driver_err_t motor_driver_encoder_get_position(void* user,
                                                      float32_t* position)
 {
-    as5600_t* as5600 = (as5600_t*)user;
+    // as5600_t* as5600 = (as5600_t*)user;
 
-    as5600_get_angle_data_scaled_bus(as5600, position);
+    // as5600_get_angle_data_scaled_bus(as5600, position);
+
+    step_motor_t* motor = (step_motor_t*)user;
+    step_motor_get_position(motor, position);
 
     return MOTOR_DRIVER_ERR_OK;
 }
@@ -321,10 +348,49 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
     }
 }
 
+static bool volatile has_step_timer_elapsed = false;
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim)
+{
+    if (htim == DRV8825_PWM_TIMER) {
+        has_step_timer_elapsed = true;
+    }
+}
+
 void SystemClock_Config(void);
+
+void move_fake_position(motor_driver_t* driver)
+{
+    float32_t speed = 0.0f;
+    const float32_t max_speed = 300.0f;
+    const float32_t accel = 10.0f;
+    const uint32_t dt_ms = 20;
+
+    /* --------- ACCELERATION --------- */
+    while (speed < max_speed) {
+        motor_driver_set_speed(driver, speed, DELTA_TIME);
+        speed += accel;
+        HAL_Delay(dt_ms);
+    }
+
+    /* --------- CRUISE --------- */
+    HAL_Delay(500); // time “at position trajectory”
+
+    /* --------- DECELERATION --------- */
+    while (speed > 0.0f) {
+        motor_driver_set_speed(driver, speed, DELTA_TIME);
+        speed -= accel;
+        HAL_Delay(dt_ms);
+    }
+
+    /* --------- STOP --------- */
+    motor_driver_set_speed(driver, 0.0f, DELTA_TIME);
+}
 
 int main(void)
 {
+    SCB->CPACR |= (0xF << 20);
+
     HAL_Init();
     SystemClock_Config();
 
@@ -340,10 +406,13 @@ int main(void)
     drv8825_pwm_user_t drv8825_pwm_user = {.step_timer = DRV8825_PWM_TIMER,
                                            .step_channel = DRV8825_PWM_CHANNEL};
 
-    drv8825_gpio_user_t drv8825_gpio_user = {.dir_port = DRV8825_DIR_GPIO,
-                                             .dir_pin = DRV8825_DIR_PIN,
-                                             .en_port = DRV8825_EN_GPIO,
-                                             .en_pin = DRV8825_EN_PIN};
+    drv8825_gpio_user_t drv8825_gpio_user = {
+        .dir_port = DRV8825_DIR_GPIO,
+        .dir_pin = DRV8825_DIR_PIN,
+        .en_port = DRV8825_EN_GPIO,
+        .en_pin = DRV8825_EN_PIN,
+        .mx_pin = {DRV8825_M0_PIN, DRV8825_M1_PIN, DRV8825_M2_PIN},
+        .mx_port = {DRV8825_M0_GPIO, DRV8825_M1_GPIO, DRV8825_M2_GPIO}};
 
     as5600_gpio_user_t as5600_gpio_user = {.dir_port = AS5600_DIR_GPIO,
                                            .dir_pin = AS5600_DIR_PIN};
@@ -365,6 +434,9 @@ int main(void)
         .pwm_stop = drv8825_pwm_stop,
         .pwm_set_frequency = drv8825_pwm_set_frequency};
     drv8825_initialize(&drv8825, &drv8825_config, &drv8825_interface);
+    drv8825_set_frequency(&drv8825, 0UL);
+    drv8825_set_forward_direction(&drv8825);
+    //  drv8825_set_thirtysecondth_microstep(&drv8825);
 
     as5600_t as5600;
     as5600_config_t as5600_config = {.min_angle = MIN_POSITION,
@@ -394,6 +466,7 @@ int main(void)
                                         .should_wrap_position = false};
     step_motor_interface_t motor_interface = {
         .device_user = &drv8825,
+        .device_initialize = step_motor_device_initialize,
         .device_set_frequency = step_motor_device_set_frequency,
         .device_set_direction = step_motor_device_set_direction};
     step_motor_initialize(&motor, &motor_config, &motor_interface, 0.0F);
@@ -419,7 +492,7 @@ int main(void)
                                            .max_current = CURRENT_LIMIT,
                                            .should_wrap_position = false};
     motor_driver_interface_t driver_interface = {
-        .encoder_user = &as5600,
+        .encoder_user = &motor,
         .encoder_get_position = motor_driver_encoder_get_position,
         .fault_user = &ina226,
         .fault_get_current = motor_driver_fault_get_current,
@@ -432,19 +505,52 @@ int main(void)
     delta_timer_start();
 
     motor_driver_state_t state;
-    while (1) {
-        if (has_delta_timer_elapsed) {
-            motor_driver_set_position(&driver, REFERENCE_POSITION, DELTA_TIME);
 
-            motor_driver_get_state(&driver, &state);
-            printf("POS: %f, REF: %f, ERR: %f, SPD: %f, CUR: %f\n\r",
-                   state.measure_position,
-                   REFERENCE_POSITION,
-                   REFERENCE_POSITION - state.measure_position,
-                   state.control_speed,
-                   state.fault_current);
+    float32_t ref_position = MIN_POSITION, step = 1.0F;
 
-            has_delta_timer_elapsed = false;
-        }
-    }
+    drv8825_pwm_start(&drv8825);
+
+    move_fake_position(&driver);
+
+    // float32_t speed = 0.0F;
+    // while (speed < 100.0F) {
+    //     motor_driver_set_speed(&driver, speed, DELTA_TIME);
+    //     speed += 1.0F;
+    // }
+    // while (speed > 0.0F) {
+    //     motor_driver_set_speed(&driver, speed, DELTA_TIME);
+    //     speed -= 1.0F;
+    // }
+    // motor_driver_set_speed(&driver, 0.0F, DELTA_TIME);
+
+    // while (1) {
+    //     if (has_delta_timer_elapsed) {
+    //         ref_position += step;
+
+    //         if (ref_position >= MAX_POSITION) {
+    //             ref_position = MAX_POSITION;
+    //             step = -fabsf(step);
+    //         } else if (ref_position <= MIN_POSITION) {
+    //             ref_position = MIN_POSITION;
+    //             step = fabsf(step);
+    //         }
+
+    //         motor_driver_set_speed(&driver, ref_position, DELTA_TIME);
+
+    //         motor_driver_get_state(&driver, &state);
+    //         printf("POS: %f, REF: %f, ERR: %f, SPD: %f, CUR: %f\n\r",
+    //                state.measure_position,
+    //                ref_position,
+    //                ref_position - state.measure_position,
+    //                state.control_speed,
+    //                state.fault_current);
+
+    //         has_delta_timer_elapsed = false;
+    //     }
+
+    //     if (has_step_timer_elapsed) {
+    //         step_motor_update_step_count(&motor);
+    //         has_step_timer_elapsed = false;
+    //     }
+    // }
 }
